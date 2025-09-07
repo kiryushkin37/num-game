@@ -161,6 +161,7 @@
   const lettersUpper = Array.from({length:26},(_,i)=>String.fromCharCode(65+i));
   let letterCase = localStorage.getItem('letterCase') || 'lower'; // 'lower' | 'upper'
   let l_round=1, l_correct=0, l_streak=0, currentLetter=null;
+  let activeMode = 'quiz'; // 'quiz' | 'order' | 'letters'
 
   // ===== Elements =====
   const $ = (s, r=document)=> r.querySelector(s); const $$=(s,r=document)=> Array.from(r.querySelectorAll(s));
@@ -181,6 +182,9 @@
     if(name==='quiz') $('#tab-quiz').classList.remove('secondary');
     if(name==='order') $('#tab-order').classList.remove('secondary');
     if(name==='letters') $('#tab-letters').classList.remove('secondary');
+    activeMode = name;
+    if(activeMode==='quiz' && currentCorrect!=null) scheduleSpeak(300,'quiz');
+    if(activeMode==='letters' && currentLetter) scheduleSpeak(300,'letters');
   }
 
   // helpers
@@ -188,7 +192,14 @@
   const shuffle = (arr)=>{ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; };
   const sample = (arr,k)=> shuffle(arr).slice(0,k);
   function nearNumbers(n){ const c=new Set(); for(let d=1; d<=3; d++){ if(n-d>=RANGE.min) c.add(n-d); if(n+d<=RANGE.max) c.add(n+d);} const rest=range(RANGE.min,RANGE.max).filter(x=>x!==n && !c.has(x)); return [...c, ...shuffle(rest)]; }
-  function scheduleSpeak(delay=1000){ if(speakTimer) clearTimeout(speakTimer); speakTimer=setTimeout(()=>{ if(currentCorrect!=null) speakNumber(currentCorrect); if(currentLetter) speakLetter(currentLetter); }, delay); }
+  function scheduleSpeak(delay=1000, kind=null){
+    if(speakTimer) clearTimeout(speakTimer);
+    const target = kind || activeMode;
+    speakTimer = setTimeout(()=>{
+      if(target==='quiz' && currentCorrect!=null) speakNumber(currentCorrect);
+      if(target==='letters' && currentLetter) speakLetter(currentLetter);
+    }, delay);
+  }
   function colorFor(n){ const h=((n - RANGE.min)/(RANGE.max-RANGE.min))*300; return [h,80,60]; }
   function applyKidStyle(el, key, isBig){ const code = typeof key==='number'? key : key.toLowerCase().charCodeAt(0)-97+10; const [h,s,l]=[(code-10)/20*300,80,60]; const h2=(h+24)%360; el.style.background=`linear-gradient(135deg, hsl(${h} ${s}% ${l+10}%), hsl(${h2} ${s}% ${l-5}%))`; el.style.color='#0b1022'; el.style.border='3px solid rgba(255,255,255,.12)'; if(isBig){ el.style.textShadow='0 1px 0 rgba(255,255,255,.35)'; el.style.fontWeight='900'; } }
   function confettiBurst(x,y){ const colors=['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#bc6ff1','#ff9cee']; for(let i=0;i<24;i++){ const piece=document.createElement('div'); piece.className='confetti-piece'; piece.style.left=x+'px'; piece.style.top=y+'px'; piece.style.background=colors[i%colors.length]; document.body.appendChild(piece); const dx=(Math.random()-0.5)*240; const dy=500+Math.random()*300; const rot=(Math.random()>0.5?1:-1)*(360+Math.random()*720); const dur=900+Math.random()*500; const anim=piece.animate([{transform:'translate(-50%,-50%) rotate(0deg)',opacity:1},{transform:`translate(${dx}px, ${dy}px) rotate(${rot}deg)`,opacity:0}],{duration:dur,easing:'cubic-bezier(.2,.7,.2,1)'}); anim.onfinish=()=>piece.remove(); } }
@@ -209,9 +220,9 @@
 
   // ===== Numbers: quiz =====
   function newQuizRound(){ const correctNum=Math.floor(Math.random()*(RANGE.max-RANGE.min+1))+RANGE.min; currentCorrect=correctNum; const distractSource=DISTRACTOR_NEAR?nearNumbers(correctNum):range(RANGE.min,RANGE.max).filter(n=>n!==correctNum); const opts=shuffle([correctNum, ...sample(distractSource.filter(n=>n!==correctNum), OPTIONS_COUNT-1)]); quizGrid.innerHTML=''; for(const n of opts){ const btn=document.createElement('button'); btn.className='num-btn'; btn.textContent=n; btn.setAttribute('aria-label',`Число ${n}`); applyKidStyle(btn, n, true); btn.addEventListener('click', ()=>onQuizChoose(btn,n)); quizGrid.appendChild(btn);} stRound.textContent=String(round); }
-  function onQuizChoose(btn,n){ unlockAudio(); if(n===currentCorrect){ btn.classList.add('ok'); correct++; streak++; round++; stCorrect.textContent=String(correct); stStreak.textContent=String(streak); beep(true); const r=btn.getBoundingClientRect(); confettiBurst(r.left+r.width/2, r.top+r.height/2); if(AUTO_NEXT) setTimeout(()=>{ newQuizRound(); scheduleSpeak(1000); },700); } else { btn.classList.add('bad'); streak=0; stStreak.textContent='0'; beep(false); setTimeout(()=>btn.classList.remove('bad'),350);} }
+  function onQuizChoose(btn,n){ unlockAudio(); if(n===currentCorrect){ btn.classList.add('ok'); correct++; streak++; round++; stCorrect.textContent=String(correct); stStreak.textContent=String(streak); beep(true); const r=btn.getBoundingClientRect(); confettiBurst(r.left+r.width/2, r.top+r.height/2); if(AUTO_NEXT) setTimeout(()=>{ newQuizRound(); scheduleSpeak(1000,'quiz'); },700); } else { btn.classList.add('bad'); streak=0; stStreak.textContent='0'; beep(false); setTimeout(()=>btn.classList.remove('bad'),350);} }
   $('#btn-repeat').addEventListener('click', ()=>{ unlockAudio(); if(currentCorrect!=null) speakNumber(currentCorrect); });
-  $('#btn-next').addEventListener('click', ()=>{ round++; stRound.textContent=String(round); newQuizRound(); scheduleSpeak(1000); });
+  $('#btn-next').addEventListener('click', ()=>{ round++; stRound.textContent=String(round); newQuizRound(); scheduleSpeak(1000,'quiz'); });
 
   // ===== Numbers: order =====
   const targetSeq=range(RANGE.min,RANGE.max); let bank=[]; let slots=new Array(targetSeq.length).fill(null);
@@ -226,16 +237,16 @@
   // ===== Letters: quiz =====
   function currentLetterSet(){ return letterCase==='upper'? lettersUpper : lettersLower; }
   function newLetterRound(){ const set=currentLetterSet(); const correct=set[Math.floor(Math.random()*set.length)]; currentLetter=correct; const distractPool=set.filter(ch=>ch!==correct); const opts=shuffle([correct, ...sample(distractPool, OPTIONS_COUNT-1)]); lettersGrid.innerHTML=''; for(const ch of opts){ const btn=document.createElement('button'); btn.className='num-btn'; btn.textContent=ch; btn.setAttribute('aria-label',`Letter ${ch}`); applyKidStyle(btn, ch, true); btn.addEventListener('click', ()=> onLetterChoose(btn, ch)); lettersGrid.appendChild(btn); } stLRound.textContent=String(l_round); stLCase.textContent = (letterCase==='upper'?'UPPERCASE':'lowercase'); }
-  function onLetterChoose(btn,ch){ unlockAudio(); if(ch===currentLetter){ btn.classList.add('ok'); l_correct++; l_streak++; l_round++; stLCorrect.textContent=String(l_correct); stLStreak.textContent=String(l_streak); beep(true); const r=btn.getBoundingClientRect(); confettiBurst(r.left+r.width/2, r.top+r.height/2); if(AUTO_NEXT) setTimeout(()=>{ newLetterRound(); scheduleSpeak(1000); },700); } else { btn.classList.add('bad'); l_streak=0; stLStreak.textContent='0'; beep(false); setTimeout(()=>btn.classList.remove('bad'),350);} }
+  function onLetterChoose(btn,ch){ unlockAudio(); if(ch===currentLetter){ btn.classList.add('ok'); l_correct++; l_streak++; l_round++; stLCorrect.textContent=String(l_correct); stLStreak.textContent=String(l_streak); beep(true); const r=btn.getBoundingClientRect(); confettiBurst(r.left+r.width/2, r.top+r.height/2); if(AUTO_NEXT) setTimeout(()=>{ newLetterRound(); scheduleSpeak(1000,'letters'); },700); } else { btn.classList.add('bad'); l_streak=0; stLStreak.textContent='0'; beep(false); setTimeout(()=>btn.classList.remove('bad'),350);} }
   $('#btn-letter-repeat').addEventListener('click', ()=>{ unlockAudio(); if(currentLetter) speakLetter(currentLetter); });
-  $('#btn-letter-next').addEventListener('click', ()=>{ l_round++; stLRound.textContent=String(l_round); newLetterRound(); scheduleSpeak(1000); });
-  $('#btn-case').addEventListener('click', ()=>{ letterCase = (letterCase==='lower'?'upper':'lower'); localStorage.setItem('letterCase', letterCase); newLetterRound(); scheduleSpeak(300); });
+  $('#btn-letter-next').addEventListener('click', ()=>{ l_round++; stLRound.textContent=String(l_round); newLetterRound(); scheduleSpeak(1000,'letters'); });
+  $('#btn-case').addEventListener('click', ()=>{ letterCase = (letterCase==='lower'?'upper':'lower'); localStorage.setItem('letterCase', letterCase); newLetterRound(); scheduleSpeak(300,'letters'); });
 
   // ===== Language select (numbers only) =====
-  if(selectLang){ selectLang.value=LANG; selectLang.addEventListener('change', ()=>{ LANG=selectLang.value; localStorage.setItem('lang', LANG); preloadAudios(); if(currentCorrect!=null) scheduleSpeak(300); }); }
+  if(selectLang){ selectLang.value=LANG; selectLang.addEventListener('change', ()=>{ LANG=selectLang.value; localStorage.setItem('lang', LANG); preloadAudios(); if(currentCorrect!=null) scheduleSpeak(300,'quiz'); }); }
 
   // ===== Startup =====
-  function boot(){ initAudio(); preloadAudios(); resetOrder(); newQuizRound(); newLetterRound(); }
+  function boot(){ initAudio(); preloadAudios(); resetOrder(); newQuizRound(); newLetterRound(); activeMode='quiz'; scheduleSpeak(800,'quiz'); }
   window.addEventListener('load', boot);
   window.addEventListener('pointerdown', unlockAudio, {once:false});
 })();
