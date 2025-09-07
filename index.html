@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Числа 10–20 — Тренажёр для детей</title>
+  <style>
+    :root{
+      --bg:#0f172a;          /* slate-900 */
+      --panel:#111827;       /* gray-900 */
+      --card:#1f2937;        /* gray-800 */
+      --text:#e5e7eb;        /* gray-200 */
+      --muted:#9ca3af;       /* gray-400 */
+      --accent:#22c55e;      /* green-500 */
+      --accent2:#38bdf8;     /* sky-400 */
+      --bad:#ef4444;         /* red-500 */
+      --shadow:0 10px 25px rgba(0,0,0,.35);
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(120deg, var(--bg), #0b1022);
+      color:var(--text); font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      -webkit-tap-highlight-color: transparent; user-select:none;
+    }
+    .wrap{max-width:1100px; margin:0 auto; padding:16px}
+    header{display:flex; gap:12px; align-items:center; justify-content:space-between; padding:8px 0 12px}
+    .title{font-size: clamp(22px, 3.5vw, 34px); font-weight:800; letter-spacing:.2px}
+    .mode-tabs{display:flex; gap:8px; flex-wrap:wrap}
+    .lang-select select{appearance:none;background:var(--card);color:var(--text);border:2px solid #253254;border-radius:12px;padding:10px 14px;font-weight:700}
+    .hint{background:#0b1222; border:1px solid #27324b; border-radius:12px; padding:8px 12px; color:#9ca3af; font-size:14px; margin:6px 0 12px}
+
+    button{cursor:pointer; border:0; border-radius:16px; padding:14px 18px; font-size:18px; font-weight:700; box-shadow:var(--shadow);
+      background:var(--accent2); color:#04111a; transition:transform .05s ease, background .2s ease, opacity .2s}
+    button.secondary{background:var(--card); color:var(--text); font-weight:600}
+    button.ghost{background:transparent; box-shadow:none; border:2px solid var(--card)}
+    button:active{transform:scale(.98)}
+    button:disabled{opacity:.45; pointer-events:none}
+
+    .panel{background:var(--panel); border-radius:24px; padding:18px; box-shadow:var(--shadow)}
+    .grid-nums{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px}
+    .num-btn{font-size: clamp(34px, 7vw, 56px); padding:18px; border-radius:24px; background:var(--card); color:var(--text); border:3px solid transparent}
+    .num-btn.ok{background:rgba(34,197,94,.15); border-color:var(--accent)}
+    .num-btn.bad{animation:shake .3s linear; border-color:var(--bad)}
+    @keyframes shake{10%{transform:translateX(-5px)} 30%{transform:translateX(6px)} 50%{transform:translateX(-4px)} 70%{transform:translateX(4px)} 100%{transform:none}}
+
+    .prompt{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
+    .prompt h2{margin:0; font-size: clamp(18px, 3vw, 24px); font-weight:800}
+
+    .stats{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; color:var(--muted); font-weight:600}
+    .chip{background:#0b1222; border:1px solid #1a2236; border-radius:999px; padding:8px 12px}
+
+    .hidden{display:none !important}
+
+    /* ORDER MODE */
+    .order-layout{display:grid; grid-template-rows:auto auto 1fr; gap:14px}
+    .bank, .slots{display:grid; gap:10px}
+    .bank{grid-template-columns:repeat(6, minmax(0,1fr))}
+    .slots{grid-template-columns:repeat(11, minmax(0,1fr))}
+    .tile, .slot{display:flex; align-items:center; justify-content:center; min-height:64px; border-radius:16px; font-weight:900; font-size: clamp(26px, 5.5vw, 40px)}
+    .tile{background:var(--card); box-shadow:var(--shadow)}
+    .tile.disabled{opacity:.35; pointer-events:none}
+    .slot{background:#0b1222; border:2px dashed #24324f; color:#6b7280}
+    .slot.filled{border-style:solid; border-color:#2d3a5f; color:var(--text)}
+    .slot.ok{background:rgba(34,197,94,.15); border-color:var(--accent); color:#b7f7cf}
+    .slot.bad{background:rgba(239,68,68,.15); border-color:var(--bad); color:#ffd2d2}
+
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap}
+
+    @media (max-width: 640px){
+      .bank{grid-template-columns:repeat(4, minmax(0,1fr))}
+      .slots{grid-template-columns:repeat(6, minmax(0,1fr))}
+    }
+    /* Fun confetti pieces (used via Web Animations) */
+  .confetti-piece{position:fixed; width:8px; height:12px; border-radius:2px; pointer-events:none; z-index:9999}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">Числа 10–20 · детский тренажёр</div>
+      <div class="mode-tabs">
+        <button id="tab-quiz" class="secondary" aria-pressed="true">🎯 Выбери число</button>
+        <button id="tab-order" class="secondary">📚 Порядок 10→20</button>
+      </div>
+      <div class="lang-select">
+        <select id="select-lang" aria-label="Язык озвучки">
+          <option value="ru">Русский</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </header>
+
+    <div id="audio-hint" class="hint">🔊 Для звука коснитесь экрана (любой кнопки), затем работают «Повторить» и озвучки.</div>
+
+    <!-- QUIZ MODE -->
+    <section id="quiz" class="panel">
+      <div class="prompt">
+        <h2>Слушай число и выбирай правильную кнопку</h2>
+        <div class="toolbar">
+          <button id="btn-repeat" class="ghost" title="Повторить звук">🔊 Повторить</button>
+          <button id="btn-next" class="ghost" title="Новый раунд">➡️ Дальше</button>
+        </div>
+      </div>
+      <div class="grid-nums" id="quiz-grid"></div>
+      <div class="stats">
+        <div class="chip">Раунд: <span id="st-round">1</span></div>
+        <div class="chip">Верно: <span id="st-correct">0</span></div>
+        <div class="chip">Серия: <span id="st-streak">0</span></div>
+      </div>
+    </section>
+
+    <!-- ORDER MODE -->
+    <section id="order" class="panel hidden">
+      <div class="order-layout">
+        <div class="prompt">
+          <h2>Выстрой числа от 10 до 20</h2>
+          <div class="toolbar">
+            <button id="btn-check" class="ghost">✅ Проверить</button>
+            <button id="btn-reset" class="ghost">🔁 Сброс</button>
+            <button id="btn-play-seq" class="ghost">🔊 Прочитать 10→20</button>
+          </div>
+        </div>
+        <div class="slots" id="slots"></div>
+        <div class="bank" id="bank"></div>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  // ===== Simple logger (debug if needed) =====
+  const log = (...a) => { try { console.log(...a); } catch(_) {} };
+
+  // ===== Config =====
+  const RANGE = { min: 10, max: 20 };
+  const AUDIO_BASE_DIR = 'audio'; // ищем audio/<lang>/<n>.mp3, затем audio/<n>.mp3
+  let LANG = localStorage.getItem('lang') || 'ru';
+  const OPTIONS_COUNT = 3;
+  const AUTO_NEXT = true;
+  const DISTRACTOR_NEAR = true;
+
+  // ===== State =====
+  let audioContext = null;
+  let audioUnlocked = false;
+  const audios = new Map(); // n -> HTMLAudioElement | 'missing'
+  let currentCorrect = null;
+  let round = 1, correct = 0, streak = 0;
+  let speakTimer = null;
+
+  // ===== Elements =====
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const selectLang = $('#select-lang');
+  const audioHint = $('#audio-hint');
+  const quiz = $('#quiz');
+  const order = $('#order');
+  const quizGrid = $('#quiz-grid');
+  const slotsEl = $('#slots');
+  const bankEl = $('#bank');
+  const stRound = $('#st-round');
+  const stCorrect = $('#st-correct');
+  const stStreak = $('#st-streak');
+
+  // ===== Tabs =====
+  $('#tab-quiz').addEventListener('click', () => showTab('quiz'));
+  $('#tab-order').addEventListener('click', () => showTab('order'));
+  function showTab(name){
+    const quizTab = $('#tab-quiz');
+    const orderTab = $('#tab-order');
+    if(name==='quiz'){
+      quiz.classList.remove('hidden'); order.classList.add('hidden');
+      quizTab.classList.remove('secondary'); orderTab.classList.add('secondary');
+      quizTab.setAttribute('aria-pressed','true'); orderTab.setAttribute('aria-pressed','false');
+    } else {
+      order.classList.remove('hidden'); quiz.classList.add('hidden');
+      orderTab.classList.remove('secondary'); quizTab.classList.add('secondary');
+      orderTab.setAttribute('aria-pressed','true'); quizTab.setAttribute('aria-pressed','false');
+    }
+  }
+
+  // ===== Helpers =====
+  const range = (a,b)=> Array.from({length:b-a+1},(_,i)=>a+i);
+  const shuffle = (arr)=>{ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; };
+  const sample = (arr,k)=> shuffle(arr).slice(0,k);
+  function nearNumbers(n){
+    const c = new Set();
+    for(let d=1; d<=3; d++){
+      if(n-d>=RANGE.min) c.add(n-d);
+      if(n+d<=RANGE.max) c.add(n+d);
+    }
+    const rest = range(RANGE.min,RANGE.max).filter(x=>x!==n && !c.has(x));
+    return [...c, ...shuffle(rest)];
+  }
+
+  // ===== Audio =====
+  function initAudio(){
+    try { audioContext = new (window.AudioContext||window.webkitAudioContext)(); } catch(_) { audioContext = null; }
+  }
+  function unlockAudio(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+    if(audioContext && typeof audioContext.resume==='function') audioContext.resume().catch(()=>{});
+    if(audioHint) audioHint.classList.add('hidden');
+  }
+  function beep(good=true){
+    if(!audioContext || !audioUnlocked) return;
+    try{
+      const dur = good ? 0.12 : 0.2, freq = good ? 880 : 220;
+      const osc = audioContext.createOscillator(); const gain = audioContext.createGain();
+      osc.type = good ? 'triangle' : 'sawtooth'; osc.frequency.value=freq; gain.gain.value=0.0025;
+      osc.connect(gain).connect(audioContext.destination); osc.start(); setTimeout(()=>osc.stop(), dur*1000);
+    }catch(_){/* noop */}
+  }
+  function audioUrl(n, lang){ return `${AUDIO_BASE_DIR}/${lang}/${n}.mp3`; }
+  function preloadAudios(){
+    audios.clear();
+    for(let n=RANGE.min; n<=RANGE.max; n++){
+      const primary = new Audio(audioUrl(n, LANG)); primary.preload='auto';
+      primary.addEventListener('error', ()=>{
+        const fallback = new Audio(`${AUDIO_BASE_DIR}/${n}.mp3`); fallback.preload='auto';
+        fallback.addEventListener('error', ()=>{ audios.set(n,'missing'); }, {once:true});
+        fallback.addEventListener('canplaythrough', ()=>{ audios.set(n,fallback); }, {once:true});
+        try{ fallback.load(); }catch(_){/* noop */}
+      }, {once:true});
+      primary.addEventListener('canplaythrough', ()=>{ audios.set(n,primary); }, {once:true});
+      try{ primary.load(); }catch(_){/* noop */}
+      audios.set(n, primary);
+    }
+  }
+  const RU_WORDS = {10:'десять',11:'одиннадцать',12:'двенадцать',13:'тринадцать',14:'четырнадцать',15:'пятнадцать',16:'шестнадцать',17:'семнадцать',18:'восемнадцать',19:'девятнадцать',20:'двадцать'};
+  const EN_WORDS = {10:'ten',11:'eleven',12:'twelve',13:'thirteen',14:'fourteen',15:'fifteen',16:'sixteen',17:'seventeen',18:'eighteen',19:'nineteen',20:'twenty'};
+  function speakNumber(n){
+    const a = audios.get(n);
+    if(a && a!=='missing'){
+      try{ a.currentTime=0; const p=a.play(); if(p && typeof p.catch==='function') p.catch(()=>{}); return; }catch(_){/* noop */}
+    }
+    if('speechSynthesis' in window && audioUnlocked){
+      const words = LANG==='en'?EN_WORDS:RU_WORDS; const code = LANG==='en'?'en-US':'ru-RU';
+      const u = new SpeechSynthesisUtterance(words[n]||String(n)); u.lang=code; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }
+  }
+  function speakSequence(nums, delay=650){ let i=0; const tick=()=>{ if(i>=nums.length) return; speakNumber(nums[i++]); setTimeout(tick, delay); }; tick(); }
+
+  // ===== Quiz Mode =====
+  function newQuizRound(){
+    const correctNum = Math.floor(Math.random()*(RANGE.max-RANGE.min+1))+RANGE.min; currentCorrect=correctNum;
+    const distractSource = DISTRACTOR_NEAR? nearNumbers(correctNum) : range(RANGE.min,RANGE.max).filter(n=>n!==correctNum);
+    const opts = shuffle([correctNum, ...sample(distractSource.filter(n=>n!==correctNum), OPTIONS_COUNT-1)]);
+
+    quizGrid.innerHTML='';
+    for(const n of opts){
+      const btn=document.createElement('button'); btn.className='num-btn'; btn.textContent=n; btn.setAttribute('aria-label',`Число ${n}`);
+      applyKidStyle(btn, n, true);
+      btn.addEventListener('click', ()=>onQuizChoose(btn,n));
+      quizGrid.appendChild(btn);
+    }
+    stRound.textContent=String(round);
+    // не автоиграем — на iOS блокируется без жеста; пользователь может нажать "Повторить"
+  }
+  function onQuizChoose(btn, n){
+    unlockAudio();
+    if(n===currentCorrect){
+      unlockAudio();
+      btn.classList.add('ok');
+      correct++; streak++; round++;
+      stCorrect.textContent=String(correct); stStreak.textContent=String(streak);
+      beep(true);
+      const r = btn.getBoundingClientRect();
+      confettiBurst(r.left + r.width/2, r.top + r.height/2);
+      if(AUTO_NEXT) setTimeout(()=>{ newQuizRound(); scheduleSpeak(1000); }, 700);
+    } else {
+      btn.classList.add('bad'); streak=0; stStreak.textContent='0'; beep(false); setTimeout(()=>btn.classList.remove('bad'),350);
+    }
+  }
+  $('#btn-repeat').addEventListener('click', ()=>{ unlockAudio(); if(currentCorrect!=null) speakNumber(currentCorrect); });
+  $('#btn-next').addEventListener('click', ()=>{ round++; stRound.textContent=String(round); newQuizRound(); scheduleSpeak(1000); });
+
+  // ===== Order Mode =====
+  const targetSeq = range(RANGE.min, RANGE.max); // [10..20]
+  let bank=[]; let slots=new Array(targetSeq.length).fill(null);
+  function resetOrder(){ bank = shuffle(targetSeq); slots = new Array(targetSeq.length).fill(null); renderOrder(); }
+  function renderOrder(){
+    // slots
+    slotsEl.innerHTML='';
+    for(let i=0;i<slots.length;i++){
+      const val=slots[i]; const slot=document.createElement('div'); slot.className='slot'+(val!=null?' filled':'');
+      slot.textContent = val!=null ? val : (i+1);
+      slot.addEventListener('click', ()=>{ unlockAudio(); if(val!=null){ bank.push(val); slots[i]=null; renderOrder(); }});
+      slotsEl.appendChild(slot);
+    }
+    // bank
+    bankEl.innerHTML='';
+    for(const n of bank){
+      const tile=document.createElement('button'); tile.className='tile'; tile.textContent=n; tile.setAttribute('aria-label',`Число ${n}`);
+      applyKidStyle(tile, n, false);
+      tile.addEventListener('click', ()=>{ unlockAudio(); const idx=slots.findIndex(x=>x==null); if(idx>=0){ slots[idx]=n; const j=bank.indexOf(n); if(j>=0) bank.splice(j,1); renderOrder(); }});
+      bankEl.appendChild(tile);
+    }
+  }
+  function checkOrder(){
+    $$('.slot', slotsEl).forEach(el=>el.classList.remove('ok','bad'));
+    const allFilled = slots.every(v=>v!=null); if(!allFilled){ $$('.slot', slotsEl).forEach((el,i)=>{ if(slots[i]==null){ el.classList.add('bad'); setTimeout(()=>el.classList.remove('bad'),500);} }); beep(false); return; }
+    let allOk=true; $$('.slot', slotsEl).forEach((el,i)=>{ if(slots[i]===targetSeq[i]) el.classList.add('ok'); else { el.classList.add('bad'); allOk=false; } });
+    if(allOk) speakSequence(targetSeq, 350); else beep(false);
+  }
+  $('#btn-check').addEventListener('click', checkOrder);
+  $('#btn-reset').addEventListener('click', resetOrder);
+  $('#btn-play-seq').addEventListener('click', ()=>{ unlockAudio(); speakSequence(targetSeq); });
+
+  // ===== Language select =====
+  if(selectLang){ selectLang.value = LANG; selectLang.addEventListener('change', ()=>{ LANG = selectLang.value; localStorage.setItem('lang', LANG); preloadAudios(); if(currentCorrect!=null) scheduleSpeak(300); }); }
+
+  // ===== Auto-speak, Colors & Confetti =====
+  function scheduleSpeak(delay=1000){
+    if(speakTimer) clearTimeout(speakTimer);
+    speakTimer = setTimeout(()=>{ if(currentCorrect!=null) speakNumber(currentCorrect); }, delay);
+  }
+  function colorFor(n){ const h = ((n - RANGE.min) / (RANGE.max - RANGE.min)) * 300; return [h, 80, 60]; }
+  function applyKidStyle(el, n, isBig){ const [h,s,l] = colorFor(n); const h2=(h+24)%360; el.style.background = `linear-gradient(135deg, hsl(${h} ${s}% ${l+10}%), hsl(${h2} ${s}% ${l-5}%))`; el.style.color = '#0b1022'; el.style.border = '3px solid rgba(255,255,255,0.12)'; if(isBig){ el.style.textShadow='0 1px 0 rgba(255,255,255,.35)'; el.style.fontWeight='900'; } }
+  function confettiBurst(x,y){
+    const colors = ['#ff6b6b','#ffd93d','#6bcB77','#4d96ff','#bc6ff1','#ff9cee'];
+    for(let i=0;i<24;i++){
+      const piece = document.createElement('div');
+      piece.className='confetti-piece';
+      piece.style.left = x+'px'; piece.style.top = y+'px';
+      piece.style.background = colors[i % colors.length];
+      document.body.appendChild(piece);
+      const dx = (Math.random()-0.5)*240;
+      const dy = 500 + Math.random()*300;
+      const rot = (Math.random()>0.5?1:-1)*(360+Math.random()*720);
+      const dur = 900 + Math.random()*500;
+      const anim = piece.animate([
+        { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 0 }
+      ], { duration: dur, easing: 'cubic-bezier(.2,.7,.2,1)'});
+      anim.onfinish = () => piece.remove();
+    }
+  }
+
+  // ===== Startup =====
+  function boot(){ initAudio(); preloadAudios(); resetOrder(); newQuizRound(); }
+  window.addEventListener('load', boot);
+  // Первое касание — разблокировать звук
+  window.addEventListener('pointerdown', unlockAudio, { once:false });
+})();
+</script>
+</body>
+</html>
